@@ -10,18 +10,26 @@ interface ICurlResponse
 {
     /**
      * @param resource $handle
-     * @return mixed
      */
     public function setHandle($handle);
 
     /**
-     * @return mixed
+     * @return resource
      */
     public function getHandle();
 
     /**
-     * @param $content
-     * @return mixed
+     * @param callable $headerCallback
      */
-    public function setContent($content);
+    public function setHeaderHandle(callable $headerCallback);
+
+    /**
+     * @param callable $bodyCallback
+     */
+    public function setBodyHandle(callable $bodyCallback);
+
+    /**
+     * A helper hook to be extended that is called when the request has been completed
+     */
+    public function onComplete();
 }

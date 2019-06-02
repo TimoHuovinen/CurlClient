@@ -3,7 +3,6 @@
 namespace CurlClient;
 
 use CurlClient\Exceptions\CurlException;
-use CurlClient\Interfaces\ICurlClient;
 use CurlClient\Interfaces\ICurlRequest;
 use CurlClient\Interfaces\ICurlResponse;
 
@@ -11,7 +10,7 @@ use CurlClient\Interfaces\ICurlResponse;
  * Class CurlClient
  * @package CurlClient
  */
-class CurlClient implements ICurlClient
+class CurlClient
 {
     /** @var resource $handle */
     protected $handle;
@@ -62,7 +61,20 @@ class CurlClient implements ICurlClient
             $ch = curl_init();
 
             // Set the curl options
-            curl_setopt_array($ch, $request->getOptions());
+            $options = $request->getOptions();
+
+            // Special CURL header handling
+            if (!array_key_exists(CURLOPT_HEADERFUNCTION, $options)) {
+                $options[CURLOPT_HEADERFUNCTION] = function ($handle, $header) use ($response) {
+                    $response->setHeaderHandle(function () use ($header) {
+                        return $header;
+                    });
+                    return strlen($header);
+                };
+            }
+
+            // Set the curl options
+            curl_setopt_array($ch, $options);
 
             // Add the curl handle to the curl multi handle
             curl_multi_add_handle($this->handle, $ch);
@@ -77,6 +89,23 @@ class CurlClient implements ICurlClient
             $client->requests[spl_object_hash($x)] = $x;
 
         });
+    }
+
+    /**
+     * @param $handle
+     * @param $header
+     * @return int
+     */
+    protected function headerFunction($handle, $header)
+    {
+        $len = strlen($header);
+        $header = explode(':', $header, 2);
+        if (count($header) < 2) { // ignore invalid headers
+            return $len;
+        }
+        $name = strtolower(trim($header[0]));
+        $headers[$name][] = trim($header[1]);
+        return $len;
     }
 
     /**
@@ -117,7 +146,10 @@ class CurlClient implements ICurlClient
             } else {
 
                 // Success
-                $response->setContent(curl_multi_getcontent($ch));
+                $response->setBodyHandle(function () use ($ch) {
+                    return curl_multi_getcontent($ch);
+                });
+                $response->onComplete();
                 if (isset($response)) {
                     $resolve($response);
                 }

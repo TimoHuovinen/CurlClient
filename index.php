@@ -1,7 +1,6 @@
 <?php
 
 require_once 'src/Promise.php';
-require_once 'src/Interfaces/ICurlClient.php';
 require_once 'src/Interfaces/ICurlRequest.php';
 require_once 'src/Interfaces/ICurlResponse.php';
 require_once 'src/CurlResponse.php';
@@ -11,7 +10,6 @@ require_once 'src/CurlClient.php';
 use \CurlClient\CurlClient;
 use \CurlClient\CurlRequest;
 use \CurlClient\CurlResponse;
-use \CurlClient\Interfaces\ICurlRequest;
 
 header('Content-type: text/plain');
 
@@ -23,28 +21,42 @@ $request = new CurlRequest([
 ]);
 $response = new CurlResponse();
 $client->add($request, $response)->then(function (CurlResponse $response) {
-    var_dump($response->getContent());
-
-    var_dump(curl_getinfo($response->getHandle()));
+   // var_dump($response->getContent());
+   // var_dump(curl_getinfo($response->getHandle()));
 });
 
-
-class GoogleRequest implements ICurlRequest
+class GoogleHomeRequest extends CurlRequest
 {
     public function getOptions()
     {
-        return [
+        return array_replace($this->options, [
             CURLOPT_URL => 'https://google.com',
             CURLOPT_FOLLOWLOCATION => 1,
             CURLOPT_MAXREDIRS => 5,
-        ];
+        ]);
     }
 }
 
+/**
+ * Handle the response, fetching all the data that we actually want
+ *
+ * Class GoogleDateResponse
+ */
+class GoogleDateResponse extends CurlResponse
+{
+    /** @var \DateTime $date */
+    public $date;
+    public function onComplete()
+    {
+        $this->date = new \DateTime($this->getLastHeader('date'));
+    }
+}
 
 // add request 2
-$client->add(new GoogleRequest, new CurlResponse())->then(function (CurlResponse $response) {
-    var_dump($response->getContent());
+$client->add(new GoogleHomeRequest, new GoogleDateResponse())->then(function (GoogleDateResponse $response) {
+    if($response->isOk()){
+        var_dump($response->date->format('Y-m-d H:i:s T'));
+    }
 });
 
 // send the requests
