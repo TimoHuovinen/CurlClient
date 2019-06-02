@@ -12,6 +12,8 @@ $request = new GetUSDCurrenyRequest;
 $response = new USDCurrencyResponse;
 
 $client = new CurlClient;
-$client->add($request, $response)->then(function(){});
+$client->add($request, $response)->then(function(USDCurrencyResponse $response){
+    echo $response->usdValue;
+});
 $client->send();
 ```
