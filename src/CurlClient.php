@@ -2,16 +2,29 @@
 
 namespace CurlClient;
 
+use CurlClient\Exceptions\CurlException;
 use CurlClient\Interfaces\ICurlClient;
 use CurlClient\Interfaces\ICurlRequest;
 use CurlClient\Interfaces\ICurlResponse;
 
+/**
+ * Class CurlClient
+ * @package CurlClient
+ */
 class CurlClient implements ICurlClient
 {
+    /** @var resource $handle */
     protected $handle;
+
+    /** @var int $timeout */
     protected $timeout;
+
+    /** @var array $requests */
     protected $requests = [];
 
+    /**
+     * CurlClient constructor.
+     */
     public function __construct()
     {
         // timeout in seconds for all the requests to respond
@@ -21,38 +34,54 @@ class CurlClient implements ICurlClient
         $this->handle = curl_multi_init();
     }
 
+    /**
+     * Clear the remaining handle
+     */
     public function __destruct()
     {
         curl_multi_close($this->handle);
     }
 
-    public function add(ICurlRequest $request, ICurlResponse $response)
+    /**
+     * Adds a request instance with the curl parameters
+     * and an optional response instance to map the response data
+     *
+     * @param ICurlRequest $request
+     * @param ICurlResponse|null $response
+     * @return Promise
+     */
+    public function add(ICurlRequest $request, ICurlResponse $response = null)
     {
-        $self = $this;
-        return new Promise(function (callable $resolve = null, callable $reject = null) use ($self, $request, $response) {
+        $client = $this;
+        return new Promise(function (callable $resolve = null, callable $reject = null) use ($client, $request, $response) {
 
-            // create cURL resource
+            // Fallback in case the response is null or false
+            $response ?: new CurlResponse();
+
+            // Create cURL resource
             $ch = curl_init();
 
-            // set the curl options
+            // Set the curl options
             curl_setopt_array($ch, $request->getOptions());
 
-            // add the curl handle to the curl multi handle
+            // Add the curl handle to the curl multi handle
             curl_multi_add_handle($this->handle, $ch);
 
+            // Add the request and the expected response into the collection
             $x = new \stdClass;
             $response->setHandle($ch);
             $x->request = $request;
             $x->response = $response;
             $x->resolve = $resolve;
             $x->reject = $reject;
-
-            $id = spl_object_hash($x);
-            $self->requests[$id] = $x;
+            $client->requests[spl_object_hash($x)] = $x;
 
         });
     }
 
+    /**
+     * Sends all the requests in parallel
+     */
     public function send()
     {
         // Execute the multi handle
@@ -74,11 +103,13 @@ class CurlClient implements ICurlClient
 
             $ch = $response->getHandle();
 
-            if (curl_errno($ch)) {
+            $errorCode = curl_errno($ch);
+
+            if ($errorCode) {
 
                 // the curl request failed
                 $url = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
-                $error = new \Exception($url . ': ' . curl_error($ch), curl_errno($ch));
+                $error = new CurlException($url . ': ' . curl_error($ch), $errorCode);
                 if (isset($reject)) {
                     $reject($error);
                 }

@@ -2,18 +2,33 @@
 
 namespace CurlClient;
 
+/**
+ * TODO: add finally and catch
+ *
+ * Class Promise
+ * @package CurlClient
+ */
 class Promise
 {
-    protected $handle;
+    /** @var callable $executor */
+    protected $executor;
 
-    public function __construct(callable $handle)
+    /**
+     * Promise constructor.
+     * @param callable $executor
+     */
+    public function __construct(callable $executor)
     {
-        $this->handle = $handle;
+        $this->executor = $executor;
     }
 
+    /**
+     * @param callable|null $resolve
+     * @param callable|null $reject
+     */
     public function then(callable $resolve = null, callable $reject = null)
     {
-        $handle = $this->handle;
-        $handle($resolve, $reject);
+        $executor = $this->executor;
+        $executor($resolve, $reject);
     }
 }
