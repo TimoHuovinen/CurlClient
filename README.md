@@ -6,7 +6,10 @@ Allow to customise the request and response class while still using curl to do t
 
 ```
 class GetUSDCurrenyRequest implements ICurlRequest { ... }
-class USDCurrencyResponse implements ICurlResponse { ... }
+class USDCurrencyResponse implements ICurlResponse { 
+   public $usdValue;
+   ...
+}
 
 $request = new GetUSDCurrenyRequest;
 $response = new USDCurrencyResponse;
