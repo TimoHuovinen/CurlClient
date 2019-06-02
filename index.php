@@ -25,7 +25,7 @@ $client->add($request, $response)->then(function (CurlResponse $response) {
    // var_dump(curl_getinfo($response->getHandle()));
 });
 
-class GoogleHomeRequest extends CurlRequest
+class GoogleHomeHeadersRequest extends CurlRequest
 {
     public function getOptions()
     {
@@ -33,6 +33,8 @@ class GoogleHomeRequest extends CurlRequest
             CURLOPT_URL => 'https://google.com',
             CURLOPT_FOLLOWLOCATION => 1,
             CURLOPT_MAXREDIRS => 5,
+            // we only fetch the headers
+            CURLOPT_NOBODY => 1,
         ]);
     }
 }
@@ -50,10 +52,14 @@ class GoogleDateResponse extends CurlResponse
     {
         $this->date = new \DateTime($this->getLastHeader('date'));
     }
+    public function setBodyHandle(callable $bodyCallback)
+    {
+        // we ignore it on purpose to save memory
+    }
 }
 
 // add request 2
-$client->add(new GoogleHomeRequest, new GoogleDateResponse())->then(function (GoogleDateResponse $response) {
+$client->add(new GoogleHomeHeadersRequest, new GoogleDateResponse())->then(function (GoogleDateResponse $response) {
     if($response->isOk()){
         var_dump($response->date->format('Y-m-d H:i:s T'));
     }
